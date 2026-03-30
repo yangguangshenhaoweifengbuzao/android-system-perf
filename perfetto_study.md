@@ -5,3 +5,7 @@ perfetto
 https://www.cnblogs.com/joy99/p/19755058
 https://androidperformance.com/2024/05/21/Android-Perfetto-01-What-is-perfetto/#Perfetto-%E7%B3%BB%E5%88%97%E7%9B%AE%E5%BD%95
 https://zhuanlan.zhihu.com/p/375503767
+
+1.perfetto全过程：从traced进程启动->ftrace/atrace数据源获取->java/native层埋点->命令行抓取perfetto->分析perfetto
+
+命令行抓取perfetto：
