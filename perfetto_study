@@ -1,0 +1,6 @@
+perfetto
+面试中经常问到的问题便是你怎么使用perfetto去查看性能问题，笔者对这方面也只是会基础的使用，如：看线程状态（running/io等），看线程消耗算力，某个线程被阻塞原因，sql语句的使用，数据源的选择等。
+笔者自认为这些技巧可以应对使用中的大部分问题，没想到面试还是直接g了，后面系统的学习一下使用方法。
+一些网站:
+https://www.cnblogs.com/joy99/p/19755058
+https://androidperformance.com/2024/05/21/Android-Perfetto-01-What-is-perfetto/#Perfetto-%E7%B3%BB%E5%88%97%E7%9B%AE%E5%BD%95
