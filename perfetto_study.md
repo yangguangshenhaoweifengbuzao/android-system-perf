@@ -26,5 +26,7 @@ adb shell 'cat /data/local/tmp/config.pbtx | perfetto -c - -o /data/misc/perfett
 ### 3.分析perfetto
 #### 3.1 基础概念
 1） 查看被哪个线程唤醒：点具体trace段cpu信息，查看黑点所在位置 ，Scheduling Latency的计算方式是：sched_switch时间 - sched_wakeup(sched_waking)时间
+
 2） 依赖链：Critical Path 
-3） 掉帧，可以看expected time 和实际时间，还有日志等
+
+3） 掉帧，可以看expected time 和实际时间，还有日志等。在安卓12上，日志与frametimeline和ftrace并不兼容，只能抓到一方的数据，附一份trace配置文件
