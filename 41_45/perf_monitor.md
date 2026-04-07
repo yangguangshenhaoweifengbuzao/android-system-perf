@@ -110,9 +110,7 @@ PerfMonitorService/
 **文件**: `src/DiskMonitor.h/cpp`
 
 **功能**:
-- 监控磁盘 I/O 状态
-- 检测磁盘空间使用情况
-- 支持文件删除策略管理 (`FileDeleteManager`)
+管理磁盘存储空间，确保性能追踪文件不会耗尽系统存储，通过时间、目录大小、分区使用率三种策略自动清理过期文件。
 
 ### 3.6 ConfigManager (配置管理器)
 
@@ -168,7 +166,17 @@ PerfMonitorService/
 - 管理上传文件记录和黑名单
 - 控制上传频率和次数限制
 - 支持上传计数管理 (日/月限制)
+支持的异常类型:
 
+  ┌───────────────────┬──────────────┬──────────────────────────────────────────────┐
+  │       类型        │     说明      │                 对应 DTC 码                  │
+  ├───────────────────┼──────────────┼──────────────────────────────────────────────┤
+  │ CpuOverThreshhold │ CPU 超限     │ DTC_PERFORMANCE_ABNORMAL_CPU_OVER_THRESHHOLD │
+  ├───────────────────┼──────────────┼──────────────────────────────────────────────┤
+  │ Key-ANR           │ 关键 ANR     │ DTC_PERFORMANCE_ABNORMAL_KEY_ANR             │
+  ├───────────────────┼──────────────┼────────────────────────────────────────
+  │ AppLaunchTimeout  │ 启动超时     │ DTC_PERFORMANCE_ABNORMAL_LAUNCH_TIMEOUT      │
+  
 ### 3.12 AccStatManager (ACC 状态管理)
 
 **文件**: `src/AccStatManager.h/cpp`
@@ -178,7 +186,7 @@ PerfMonitorService/
 - 通过 `BYDAutoManager` 获取车控信号
 - 状态变更时通知观察者
 
-### 3.13 SysDataReportServer (Binder 服务)
+### 3.13 SysDataReportServer (Binder 服务)（在其他进程里面埋点，通过binder传递异常信息，如anr实在system_server里面买点）
 
 **文件**: `src/SysDataReportServer.h/cpp`
 
@@ -261,7 +269,7 @@ Perfetto 是 Android 系统级追踪工具，本服务提供三套配置:
 
 ## 9. 适用场景
 
-1. **车载 Android 系统** - 支持 di3.0 ~ di6.0 平台
+1. **车载 Android 系统** 
 2. **性能异常诊断** - CPU/GPU 超限、ANR、启动超时
 3. **帧率监控** - UI 卡顿检测与上报
 4. **远程策略控制** - 云端下发监控阈值
