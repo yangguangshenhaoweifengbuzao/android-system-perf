@@ -203,14 +203,29 @@ PerfMonitorService/
 - SQLite 数据库封装
 - 异步写入队列处理
 - 支持设备信息、上传记录等数据持久化
+表结构说明
 
+  ┌─────────────────────┬──────────────────────────────────────────────────┬────────────────────────────┐  
+  │        表名         │                       字段                        │            用途            │  
+  ├─────────────────────┼──────────────────────────────────────────────────┼───
+  │ alreadyUploadedFile │ id, fileNAME(主键), uploadTime                   │ 记录已上传的文件名和时间     │  
+  ├─────────────────────┼──────────────────────────────────────────────────┼────────────────────────────┤  
+  │ deviceInfo          │ iccid, vin, inswVer, outswVer, mcuVer, carModel, │ 存储设备/车辆/软件版本信息   │  
+  │                     │  carBrand, platform, uiVer, updateTime           │                            │  
+  ├─────────────────────┼──────────────────────────────────────────────────┼────────────────────────────┤  
+  │ test                │ id, name, age                                    │ 测试用途
+  WAL 模式优化
+
+  // 开启 Write-Ahead Logging
+  sqlite3_exec(mDatabase, "PRAGMA journal_mode=WAL;");
+  sqlite3_exec(mDatabase, "PRAGMA wal_autocheckpoint=500;");
 ### 3.15 RingBuffer (环形缓冲区)
 
 **文件**: `src/RingBuffer.h`
 
 **功能**:
 - 固定大小的环形缓冲区模板类
-- 用于存储历史监控数据
+- 用于存储历史监控数据,自动丢弃旧数据
 - 支持滑动窗口数据分析
 
 ## 4. 服务启动流程
@@ -266,6 +281,50 @@ Perfetto 是 Android 系统级追踪工具，本服务提供三套配置:
 | `config_simple.pbtxt` | 简化追踪 | 较小 |
 | `config.pbtxt` | 默认追踪 | 102400 KB |
 | `config_detail.pbtxt` | 详细追踪 | 最大 |
+
+## 6.Input Latency Monitor
+11.4 延迟分段计算
+在inputdispatcher里面埋点记录各个过程时间
+延迟段	计算方式	含义
+allDelay	finishTime - eventTime	总延迟 (事件产生到完成)
+deliveryDelay	deliveryTime - eventTime	分发延迟 (到开始分发)
+delivery2EnOqDelay	enOqTime - deliveryTime	分发到入队延迟
+enOq2EnWqDelay	enWqTime - enOqTime	OutboundQueue 到 WaitQueue 延迟
+deOq2ConsumeDelay	consumeTime - enWqTime	WaitQueue 到消费延迟
+
+## 7.帧率监控和app启动监控  libs/hwui/JankTracker.cpp     /     ActivityMetricsLogger.java
+### 7.1 app启动
+cold	1	冷启动 - 进程不存在，需创建新进程
+warm	2	温启动 - 进程存在但 Activity 需重建
+hot	3	热启动 - 进程和 Activity 都存在，只需恢复
+
+// 1. startActivity 时记录开始时间
+void setStartTime(int dataType, long uptimes) {
+    mTimes[dataType] = uptimes;
+    // dataType = AMS_START_ACTIVITY
+}
+
+// 2. bindApplication 时记录绑定时间
+// dataType = AMS_BIND_APPLICATION
+
+// 3. 首帧显示时记录显示时间
+// dataType = AMS_DISPLAYED
+
+<com.android.settings/.Settings (10123,12345678,1.2.3) 
+ startActivityTime=1234567890 bindApplicationTime=1234567900 
+ displayedTime=1234568100 delay=210ms type=cold 
+ dateTime=2025-04-12 10:30:45>
+### 8.2帧率监控
+int64_t realTotalDuration = frame.duration(FrameInfoIndex::Vsync,
+        FrameInfoIndex::FrameCompleted);
+#### 帧耗时分段分析
+阶段	计算方式	含义
+Input 处理	InputHandling - Vsync	输入事件处理耗时
+Animation	AnimationCallback - InputHandling	动画计算耗时
+Layout/Measure	PerformTraversalsStart - AnimationCallback	布局测量耗时
+Draw	DrawStart - PerformTraversalsStart	绘制准备耗时
+Sync	SyncStart - DrawStart	资源同步耗时
+GPU 渲染	IssueDrawCommandsStart - 
 
 ## 9. 适用场景
 
