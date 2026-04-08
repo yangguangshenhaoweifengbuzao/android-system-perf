@@ -283,49 +283,207 @@ Perfetto 是 Android 系统级追踪工具，本服务提供三套配置:
 | `config_detail.pbtxt` | 详细追踪 | 最大 |
 
 ## 6.Input Latency Monitor
-11.4 延迟分段计算
+### 延迟分段计算
 在inputdispatcher里面埋点记录各个过程时间
+
 延迟段	计算方式	含义
+
 allDelay	finishTime - eventTime	总延迟 (事件产生到完成)
+
 deliveryDelay	deliveryTime - eventTime	分发延迟 (到开始分发)
+
 delivery2EnOqDelay	enOqTime - deliveryTime	分发到入队延迟
+
 enOq2EnWqDelay	enWqTime - enOqTime	OutboundQueue 到 WaitQueue 延迟
+
 deOq2ConsumeDelay	consumeTime - enWqTime	WaitQueue 到消费延迟
 
 ## 7.帧率监控和app启动监控  libs/hwui/JankTracker.cpp     /     ActivityMetricsLogger.java
 ### 7.1 app启动
+
 cold	1	冷启动 - 进程不存在，需创建新进程
+
 warm	2	温启动 - 进程存在但 Activity 需重建
+
 hot	3	热启动 - 进程和 Activity 都存在，只需恢复
 
 // 1. startActivity 时记录开始时间
+
 void setStartTime(int dataType, long uptimes) {
     mTimes[dataType] = uptimes;
     // dataType = AMS_START_ACTIVITY
 }
 
 // 2. bindApplication 时记录绑定时间
+
 // dataType = AMS_BIND_APPLICATION
 
 // 3. 首帧显示时记录显示时间
+
 // dataType = AMS_DISPLAYED
 
 <com.android.settings/.Settings (10123,12345678,1.2.3) 
  startActivityTime=1234567890 bindApplicationTime=1234567900 
  displayedTime=1234568100 delay=210ms type=cold 
  dateTime=2025-04-12 10:30:45>
-### 8.2帧率监控
+ 
+### 8.2 帧率监控
 int64_t realTotalDuration = frame.duration(FrameInfoIndex::Vsync,
         FrameInfoIndex::FrameCompleted);
-#### 帧耗时分段分析
-阶段	计算方式	含义
-Input 处理	InputHandling - Vsync	输入事件处理耗时
-Animation	AnimationCallback - InputHandling	动画计算耗时
-Layout/Measure	PerformTraversalsStart - AnimationCallback	布局测量耗时
-Draw	DrawStart - PerformTraversalsStart	绘制准备耗时
-Sync	SyncStart - DrawStart	资源同步耗时
-GPU 渲染	IssueDrawCommandsStart - 
 
+#### 8.2.1 FrameInfoIndex 完整枚举定义
+
+```cpp
+enum FrameInfoIndex {
+    // ========== 信号与意图 ==========
+    Flags,                      // 帧标志位
+    FrameTimelineVsyncId,       // FrameTimeline Vsync ID
+    Vsync,                      // Vsync 时间戳 (帧开始)
+    ExpectedVsync,              // 期望的 Vsync 时间
+    ExpectedEndTime,            // 期望结束时间
+    
+    // ========== 输入处理阶段 ==========
+    InputHandlingStart,         // 输入处理开始
+    InputHandling,              // 输入处理结束
+    
+    // ========== 动画阶段 ==========
+    AnimationCallbackStart,     // 动画回调开始
+    AnimationCallback,          // 动画回调结束
+    
+    // ========== 遍历阶段 ==========
+    PerformTraversalsStart,     // performTraversals() 开始
+    PerformTraversals,          // performTraversals() 结束
+    
+    // ========== 绘制阶段 ==========
+    DrawStart,                  // draw() 开始
+    Draw,                       // draw() 结束 (录制 DisplayList)
+    
+    // ========== 同步阶段 ==========
+    SyncStart,                  // sync() 开始
+    Sync,                       // sync() 结束 (资源同步)
+    
+    // ========== GPU 阶段 ==========
+    IssueDrawCommandsStart,     // GPU 命令下发开始
+    IssueDrawCommands,          // GPU 命令下发结束
+    // ========== 缓冲区阶段 ==========
+    SwapBuffers,                // eglSwapBuffers() 调用
+    FrameCompleted,             // 帧完成时间戳
+    
+    // ========== 额外信息 ==========
+    DequeueBuffer,              // dequeueBuffer 耗时
+    QueueBuffer,                // queueBuffer 耗时
+};
+```
+#### 8.2.2 典型卡顿场景分析
+
+##### 场景 1: 列表滚动卡顿
+
+```
+帧耗时分布 (总耗时 45ms):
+┌─────────────────────────────────────────────────────────────┐
+│ Input:    ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3ms         │
+│ Animation:██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░  5ms         │
+│ Traversal:████████████████░░░░░░░░░░░░░░░░░░  18ms ⚠️     │
+│ Draw:     ████████░░░░░░░░░░░░░░░░░░░░░░░░░░  6ms         │
+│ Sync:     ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3ms         │
+│ GPU:      ████████░░░░░░░░░░░░░░░░░░░░░░░░░░  6ms         │
+│ Swap:     ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  4ms         │
+└─────────────────────────────────────────────────────────────┘
+
+问题定位: Traversal 阶段耗时过长 (18ms)
+原因分析: RecyclerView Item 布局复杂，onMeasure 中有耗时计算
+优化建议: 
+  1. 简化 Item 布局层级
+  2. 使用 DiffUtil 替代 notifyDataSetChanged
+  3. 预计算 Item 高度避免重新测量
+```
+
+##### 场景 2: 动画卡顿
+
+```
+帧耗时分布 (总耗时 32ms):
+┌─────────────────────────────────────────────────────────────┐
+│ Input:    ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1ms         │
+│ Animation:████████████████████████░░░░░░░░░░  20ms ⚠️     │
+│ Traversal:████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3ms         │
+│ Draw:     ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3ms         │
+│ Sync:     ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1ms         │
+│ GPU:      ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  4ms         │
+└─────────────────────────────────────────────────────────────┘
+
+问题定位: Animation 阶段耗时过长 (20ms)
+原因分析: 多个属性动画同时运行，动画监听器中有复杂计算
+优化建议:
+  1. 使用 RenderThread 动画
+  2. 减少同时运行的动画数量
+  3. 将复杂计算移出动画回调
+```
+
+##### 场景 3: 图片加载卡顿
+
+```
+帧耗时分布 (总耗时 38ms):
+┌─────────────────────────────────────────────────────────────┐
+│ Input:    ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1ms         │
+│ Animation:██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1ms         │
+│ Traversal:████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3ms         │
+│ Draw:     ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3ms         │
+│ Sync:     ███████████████████████████░░░░░░░  25ms ⚠️     │
+│ GPU:      ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  5ms         │
+└─────────────────────────────────────────────────────────────┘
+
+问题定位: Sync 阶段耗时过长 (25ms)
+原因分析: 大图解码和 GPU 上传阻塞优化建议:
+  1. 使用异步图片加载库 (Glide/Coil)
+  2. 预加载图片到内存
+  3. 使用 hardware Bitmap
+  4. 降低图片分辨率
+```
+
+#### 8.2.3 帧耗时计算代码
+
+```cpp
+// JankTracker.cpp
+struct FrameTiming {
+    int64_t inputTime;      // InputHandling - Vsync
+    int64_t animationTime;  // AnimationCallback - InputHandling
+    int64_t traversalTime;  // PerformTraversalsStart - AnimationCallback
+    int64_t drawTime;       // DrawStart - PerformTraversalsStart
+    int64_t syncTime;       // SyncStart - DrawStart
+    int64_t gpuTime;        // IssueDrawCommandsStart - SyncStart
+    int64_t swapTime;       // SwapBuffers - IssueDrawCommandsStart
+    int64_t totalTime;      // FrameCompleted - Vsync
+};
+
+FrameTiming getFrameTiming(FrameInfo& frame) {
+    FrameTiming timing;
+    timing.inputTime = frame.duration(Vsync, InputHandling);
+    timing.animationTime = frame.duration(InputHandling, AnimationCallback);
+    timing.traversalTime = frame.duration(AnimationCallback, PerformTraversalsStart);
+    timing.drawTime = frame.duration(PerformTraversalsStart, DrawStart);
+    timing.syncTime = frame.duration(DrawStart, SyncStart);
+    timing.gpuTime = frame.duration(SyncStart, IssueDrawCommandsStart);
+    timing.swapTime = frame.duration(IssueDrawCommandsStart, SwapBuffers);
+    timing.totalTime = frame.duration(Vsync, FrameCompleted);
+    return timing;
+}
+```
+#### 8.2.4 各阶段优化总结
+
+| 阶段 | 正常耗时 | 常见慢因 | 优化方向 |
+|-----|---------|---------|---------|
+| **Input** | < 2ms | 事件堆积、复杂手势处理 | 异步处理、避免阻塞 |
+| **Animation** | < 2ms | 动画过多、监听器耗时 | 使用 RenderThread 动画 |
+| **Traversal** | < 4ms | View 层级深、复杂布局 | 扁平化布局、异步 inflate |
+| **Draw** | < 4ms | 复杂绘制、对象创建 | 复用对象、硬件加速 |
+| **Sync** | < 2ms | 图片解码、资源上传 | 预加载、异步解码 |
+| **GPU** | < 4ms | Shader 复杂、过度绘制 | 简化效果、减少层数 |
+| **Swap** | < 2ms | GPU 未完成、缓冲区分配 | 增加缓冲区、优化 GPU |
+
+#### 8.2.5 perfetto对应
+安卓版本需要支持FrameTimeline 数据源映射才行
+
+android.surfaceflinger.frametimeline 数据源提供完整的帧时间线追踪
 ## 9. 适用场景
 
 1. **车载 Android 系统** 
