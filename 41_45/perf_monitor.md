@@ -484,6 +484,11 @@ FrameTiming getFrameTiming(FrameInfo& frame) {
 安卓版本需要支持FrameTimeline 数据源映射才行
 
 android.surfaceflinger.frametimeline 数据源提供完整的帧时间线追踪
+
+#### 8.2.6 上传数据
+包含 aplog ， 上报帧记录（按pid排序）， perfetto，只有严重卡顿的帧才会上报，将这些文件打包，通过系统属性/云端 控制上报频率等
+
+
 ## 9. 适用场景
 
 1. **车载 Android 系统** 
