@@ -1,0 +1,3 @@
+- 1.火焰图
+- 2.syncAndDrawFrame
+- 3.insets animation
