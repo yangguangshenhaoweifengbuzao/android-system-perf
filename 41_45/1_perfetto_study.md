@@ -50,5 +50,9 @@ adb shell 'cat /data/local/tmp/config.pbtx | perfetto -c - -o /data/misc/perfett
 ### 7.基于 Perfetto 的渲染流程分析
 https://androidperformance.com/2025/08/02/Android-Perfetto-07-MainThread-And-RenderThread/
 <img width="2532" height="2210" alt="image" src="https://github.com/user-attachments/assets/b2764145-7492-4e9e-b2eb-3f5765303d41" />
+
 ### 8.Vsync
+
 ### 9.CPU 信息解读
+
+### 10.binder与锁竞争
