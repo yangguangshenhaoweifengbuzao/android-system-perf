@@ -1,4 +1,4 @@
-- 1.火焰图
+- 1.火焰图  目前会抓了，后续还需要实验试一下
 - 2.syncAndDrawFrame
 - 3.insets animation
 - 4.BLAST机制
