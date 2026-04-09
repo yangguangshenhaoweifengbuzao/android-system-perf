@@ -41,3 +41,12 @@ adb shell 'cat /data/local/tmp/config.pbtx | perfetto -c - -o /data/misc/perfett
 3） 掉帧，可以看expected time 和实际时间，还有日志等。在安卓12上，日志与frametimeline和ftrace并不兼容，只能抓到一方的数据，附一份trace配置文件
 
 ### 4.ANR分析
+
+### 5.大型perfetto文件可以通过工具解析，小型文件可以直接拖到网站里面
+
+### 6.Choreographer
+<img width="2550" height="1390" alt="image" src="https://github.com/user-attachments/assets/a1551091-7948-4344-ab9e-5e38d1d9faf9" />
+
+### 7.基于 Perfetto 的渲染流程分析
+https://androidperformance.com/2025/08/02/Android-Perfetto-07-MainThread-And-RenderThread/
+<img width="2532" height="2210" alt="image" src="https://github.com/user-attachments/assets/b2764145-7492-4e9e-b2eb-3f5765303d41" />
