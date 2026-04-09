@@ -1,4 +1,5 @@
 - 1.火焰图
 - 2.syncAndDrawFrame
 - 3.insets animation
-- 4.BLAST机制 
+- 4.BLAST机制
+- 5.vsync机制优化
