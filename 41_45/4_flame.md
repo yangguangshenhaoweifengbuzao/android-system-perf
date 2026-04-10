@@ -1,5 +1,5 @@
 ### 火焰图
-#### 1. 采集数据
+#### 1. 采集数据(c++程序)
   adb shell "simpleperf record -p 15136 -g --duration 5 -o data/local/tmp/perf.data"
 
 #### 2. 生成 Perfetto 可用的 protobuf 格式
@@ -8,7 +8,7 @@
 #### 3. 拉取到本地
   adb pull data/local/tmp/perf_record.proto "c:/Users/hao.zixun/Desktop/bug/perf_record.proto"
 
-#### 也通过as 的profiler进行查看
+#### 也通过as 的profiler进行查看（java程序）
   ```
 package com.example.myapplication;
 
